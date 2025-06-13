@@ -1,0 +1,30 @@
+[theme]
+# Main background color (OpenAI's dark theme)
+backgroundColor = "#343541"
+
+# Secondary background for widgets and sidebar
+secondaryBackgroundColor = "#444654"
+
+# Text color for better readability
+textColor = "#ECECF1"
+
+# Base theme
+base = "dark"
+
+# OpenAI's signature green accent color
+primaryColor = "#10A37F"
+
+# Font stack matching OpenAI's UI
+font = "sans serif"
+
+# Additional theme settings for better UI matching
+[theme.fontFace]
+family = "Söhne"
+url = "https://cdn.openai.com/s/sohne-regular.woff2"
+
+# Border radius for elements
+borderRadius = "0.375rem"
+
+# Border color for elements
+borderColor = "#4B5563"
+
