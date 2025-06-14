@@ -2,6 +2,9 @@ import streamlit as st
 from api_llm import create_model, generate_answer
 from funct import change_model, reset_values, clear_chat
 import copy
+import json
+from datetime import datetime
+import os
 
 st.set_page_config(page_title="LLM Playground", layout='wide', page_icon='🦜🔗')
 reduce_header_height_style = """
@@ -54,12 +57,35 @@ if "assistant_system_prompt" not in st.session_state:
 ####################################[   FRONTEND - MAIN SCREEN ]#####################################################    
 
 # Top Bar
-col1, col2 = st.columns([0.9, 0.1])
+col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
 with col1:
     st.markdown("<h1 style='margin: 0; padding: 0;'>LLM Playground</h1>", unsafe_allow_html=True)
 with col2:
     if st.button("Add Model", use_container_width=True):
         st.session_state.show_add_model = True
+with col3:
+    if st.button("Save Conversation", use_container_width=True):
+        if st.session_state.conversation:
+            # Create conversations directory if it doesn't exist
+            conversations_dir = "conversations"
+            os.makedirs(conversations_dir, exist_ok=True)
+            
+            # Create filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"conversation_{timestamp}.json"
+            filepath = os.path.join(conversations_dir, filename)
+            
+            # Save conversation to file
+            with open(filepath, 'w') as f:
+                json.dump({
+                    "conversation": st.session_state.conversation,
+                    "human_system_prompt": st.session_state.human_system_prompt,
+                    "assistant_system_prompt": st.session_state.assistant_system_prompt,
+                    "models_used": st.session_state.selected_models
+                }, f, indent=2)
+            st.success(f"Conversation saved to {filepath}")
+        else:
+            st.warning("No conversation to save")
 st.markdown("---")
 
 # Add Model Modal
@@ -72,9 +98,9 @@ if st.session_state.show_add_model:
         
         col1, col2 = st.columns(2)
         with col1:
-            submit_button = st.form_submit_button("Add Model")
+            submit_button = st.form_submit_button("Add Model", use_container_width=True)
         with col2:
-            if st.form_submit_button("Cancel"):
+            if st.form_submit_button("Cancel", use_container_width=True):
                 st.session_state.show_add_model = False
                 st.rerun()
         
