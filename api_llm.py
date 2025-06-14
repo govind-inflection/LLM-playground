@@ -12,7 +12,7 @@ class LLMAPI:
             "Content-Type": "application/json"
         }
 
-    def generate_response(self, conversation: List[Dict[str, str]], temperature: float = 0.7, max_tokens: int = 100) -> str:
+    def generate_response(self, conversation: List[Dict[str, str]], temperature: float = 0.7, max_tokens: int = 500) -> str:
         """
         Generate a response from the LLM using direct API calls with conversation history
         """
