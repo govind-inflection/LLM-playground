@@ -74,7 +74,7 @@ if "current_turn" not in st.session_state:
 if "llm_instances" not in st.session_state:
     st.session_state.llm_instances = {"user": None, "assistant": None}
 if "human_system_prompt" not in st.session_state:
-    st.session_state.human_system_prompt = ""
+    st.session_state.human_system_prompt = "You are a human talking to an AI."
 if "assistant_system_prompt" not in st.session_state:
     st.session_state.assistant_system_prompt = ""
 if "current_mode" not in st.session_state:
@@ -83,7 +83,7 @@ if "current_mode" not in st.session_state:
 ####################################[   FRONTEND - MAIN SCREEN ]#####################################################    
 
 # Top Bar
-col1, col2, col3, col4 = st.columns([0.6, 0.15, 0.15, 0.1])
+col1, col2, col3, col4, col5 = st.columns([0.55, 0.1, 0.1, 0.1, 0.15])
 with col1:
     st.markdown("<h1 style='margin: 0; padding: 0;'>LLM Playground</h1>", unsafe_allow_html=True)
 with col2:
@@ -99,6 +99,31 @@ with col3:
 with col4:
     if st.button("Add Model", use_container_width=True):
         st.session_state.show_add_model = True
+
+with col5:
+    if st.button("Save Conversation", use_container_width=True):
+        if st.session_state.conversation:
+            # Create conversations directory if it doesn't exist
+            conversations_dir = "single_run_results"
+            os.makedirs(conversations_dir, exist_ok=True)
+            
+            # Create filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"conversation_{timestamp}.json"
+            filepath = os.path.join(conversations_dir, filename)
+            
+            # Save conversation to file
+            with open(filepath, 'w') as f:
+                json.dump({
+                    "models_used": st.session_state.selected_models,
+                    "human_system_prompt": st.session_state.human_system_prompt,
+                    "assistant_system_prompt": st.session_state.assistant_system_prompt,
+                    "max_turns": st.session_state.max_turns,
+                    "conversation": st.session_state.conversation
+                }, f, indent=2)
+            st.success(f"Conversation saved to {filepath}")
+        else:
+            st.warning("No conversation to save")
 st.markdown("---")
 
 # Add Model Dialog
@@ -222,7 +247,7 @@ if not st.session_state.show_add_model:
                     st.markdown(message["content"])
             
             # Continue conversation if not reached max turns
-            if st.session_state.current_turn < st.session_state.max_turns:
+            if st.session_state.current_turn <= st.session_state.max_turns:
                 with st.spinner('Generating next response...'):
                     # Get the last message
                     last_message = st.session_state.conversation[-1]
@@ -245,7 +270,10 @@ if not st.session_state.show_add_model:
                     
                     # Add response to conversation
                     st.session_state.conversation.append({"role": next_role, "content": response})
-                    st.session_state.current_turn += 1
+                    
+                    # Only increment turn counter when we complete a full exchange (user + assistant)
+                    if next_role == "assistant":
+                        st.session_state.current_turn += 1
                     st.rerun()
             else:
                 st.info("Conversation reached maximum turns")
@@ -269,6 +297,8 @@ if not st.session_state.show_add_model:
                     # Display the prompts in a table
                     st.subheader("Loaded Prompts")
                     prompts_df = pd.DataFrame(prompts_data)
+                    prompts_df.index = prompts_df.index + 1
+                    prompts_df.columns = ["Prompt"]
                     st.dataframe(prompts_df, use_container_width=True)
                     
                     # Run button
@@ -283,31 +313,41 @@ if not st.session_state.show_add_model:
                             
                             # Run each conversation
                             for i, prompt in enumerate(prompts_data):
-                                status_text.text(f"Running conversation {i+1}/{len(prompts_data)}")
+                                status_text.text(f"Running conversation {i+1}/{len(prompts_data)}...")
                                 
                                 # Initialize conversation
-                                conversation = [{"role": "system", "content": st.session_state.assistant_system_prompt},
+                                assistant_conversation = [{"role": "system", "content": st.session_state.assistant_system_prompt},
                                               {"role": "user", "content": prompt}]
                                 
+                                user_conversation = [{"role": "system", "content": st.session_state.human_system_prompt},
+                                              {"role": "assistant", "content": prompt}]
+                                
                                 # Run conversation
-                                for turn in range(st.session_state.max_turns):
+                                for turn in range(st.session_state.max_turns): 
                                     # Generate response
-                                    response = generate_answer(
+                                    assistant_response = generate_answer(
                                         st.session_state.llm_instances["assistant"],
-                                        conversation
+                                        assistant_conversation
                                     )
                                     
                                     # Add response to conversation
-                                    conversation.append({"role": "assistant", "content": response})
+                                    assistant_conversation.append({"role": "assistant", "content": assistant_response})
+                                    user_conversation.append({"role": "user", "content": assistant_response})
                                     
                                     # Add user's next prompt if not the last turn
                                     if turn < st.session_state.max_turns - 1:
-                                        conversation.append({"role": "user", "content": prompt})
+                                        user_response = generate_answer(
+                                            st.session_state.llm_instances["user"],
+                                            user_conversation
+                                        )
+                                        user_conversation.append({"role": "assistant", "content": user_response})
+                                        assistant_conversation.append({"role": "user", "content": user_response})
                                 
+                                print(assistant_conversation)
                                 # Store results
                                 results.append({
                                     "prompt": prompt,
-                                    "conversation": conversation
+                                    "conversation": assistant_conversation
                                 })
                                 
                                 # Update progress
@@ -321,8 +361,9 @@ if not st.session_state.show_add_model:
                             
                             with open(results_file, 'w') as f:
                                 json.dump({
-                                    "model": st.session_state.selected_models["assistant"],
-                                    "system_prompt": st.session_state.assistant_system_prompt,
+                                    "models_used": st.session_state.selected_models,
+                                    "human_system_prompt": st.session_state.human_system_prompt,
+                                    "assistant_system_prompt": st.session_state.assistant_system_prompt,
                                     "max_turns": st.session_state.max_turns,
                                     "results": results
                                 }, f, indent=2)
