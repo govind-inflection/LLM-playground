@@ -88,33 +88,33 @@ with col3:
             st.warning("No conversation to save")
 st.markdown("---")
 
-# Add Model Modal
-if st.session_state.show_add_model:
-    with st.form("add_model_form"):
-        st.subheader("Add New Model")
-        model_name = st.text_input("Model Name", help="Enter a name for this model configuration")
-        api_url = st.text_input("API URL", help="Enter the API endpoint URL (e.g., https://api.openai.com/v1/chat/completions)")
-        api_key = st.text_input("API Key", type="password", help="Enter your API key")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            submit_button = st.form_submit_button("Add Model", use_container_width=True)
-        with col2:
-            if st.form_submit_button("Cancel", use_container_width=True):
-                st.session_state.show_add_model = False
-                st.rerun()
-        
-        if submit_button:
+# Add Model Dialog
+@st.dialog("Add New Model")
+def add_model_dialog():
+    model_name = st.text_input("Model Name", help="Enter a name for this model configuration")
+    api_url = st.text_input("API URL", help="Enter the API endpoint URL (e.g., https://api.openai.com/v1/chat/completions)")
+    api_key = st.text_input("API Key", type="password", help="Enter your API key")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Add Model", use_container_width=True, key="dialog_add_model_btn"):
             if model_name and api_url and api_key:
                 st.session_state.saved_models[model_name] = {
                     "api_url": api_url,
                     "api_key": api_key
                 }
-                st.session_state.show_add_model = False
                 st.success(f"Model '{model_name}' added successfully!")
                 st.rerun()
             else:
                 st.error("Please fill in all fields")
+    with col2:
+        if st.button("Cancel", use_container_width=True, key="dialog_cancel_btn"):
+            st.rerun()
+
+# Call the dialog when show_add_model is True
+if st.session_state.show_add_model:
+    add_model_dialog()
+    st.session_state.show_add_model = False
 
 ###########[   SIDEBAR    ]###################    
 with st.sidebar:
