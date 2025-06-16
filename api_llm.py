@@ -49,3 +49,26 @@ def generate_answer(llm: LLMAPI, conversation: List[Dict[str, str]]) -> str:
     Generate an answer using the LLM with conversation history
     """
     return llm.generate_response(conversation) 
+
+def get_attributes(attribute_model, messages, attributes_df):
+    #make a copy of the dataframe
+    attributes_df_copy = attributes_df.copy()
+    # convert connotation from string to boolean
+    attributes_df_copy['connotation'] = attributes_df_copy['connotation'].apply(lambda x: True if x == "Positive" else False)
+    attributes_df_copy.rename(columns={'connotation': 'positive'}, inplace=True)
+    payload = {
+        "model": attribute_model.model_name,
+        "messages": messages,
+        "attributes": attributes_df_copy.to_dict(orient="records")
+    }
+        
+    response = requests.post(
+        attribute_model.api_url,
+        headers=attribute_model.headers,
+        json=payload
+    )
+        
+    if response.status_code == 200:
+        return response.json()["choices"][0]["message"]["content"]
+    else:
+        raise Exception(f"LLM API request failed: {response.text}")
